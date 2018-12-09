@@ -2,11 +2,12 @@
 
 import os
 import re
+import pipes
 
 
 srcdir = '/data/sabnzbd/Downloads/complete/'
 dstdir = '/Music/TV'
-kiddingFlag = False
+kiddingFlag = True
 
 
 ##############################################################################
@@ -24,44 +25,45 @@ def demangle_showname(name):
 
 
 ##############################################################################
-def make_show(showname, season):
+def make_show_dirs(showname, season):
     dest = os.path.join(dstdir, showname)
     if not os.path.exists(dest):
         if kiddingFlag:
             print("mkdir {}".format(dest))
         else:
-            os.path.mkdir(dest)
+            os.mkdir(dest)
 
     seasondir = os.path.join(dest, 'Season {}'.format(season))
     if not os.path.exists(seasondir):
         if kiddingFlag:
             print("mkdir {}".format(seasondir))
         else:
-            os.path.mkdir(seasondir)
+            os.mkdir(seasondir)
     return seasondir
 
 
 ##############################################################################
-def move_show(fname, destdir, dstfile):
+def move_show(fname, destdir, destfile):
+    dest = pipes.quote("{}/{}".format(destdir, destfile))
+    fname = pipes.quote(fname)
     if kiddingFlag:
-        print("mv {} {}/{}".format(fname, destdir, dstfile))
+        print("mv {} {}".format(fname, dest))
     else:
-        os.rename(fname, "{}/{}".format(destdir, dstfile))
+        os.system("mv {} {}".format(fname, dest))
 
 
 ##############################################################################
 def main():
     for root, dirs, files in os.walk(srcdir):
         if files:
-            print("root={}".format(root))
             m_showname = root.replace(srcdir, '')
             showname, season, episode = demangle_showname(m_showname)
-            destdir = make_show(showname, season)
+            destdir = make_show_dirs(showname, season)
             for fname in files:
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
-                dstfile = "{}.S{:02d}E{:02d}{}".format(showname, season, episode, ext)
-                move_show(srcfile, destdir, dstfile)
+                destfile = "{}.S{:02d}E{:02d}{}".format(showname, season, episode, ext)
+                move_show(srcfile, destdir, destfile)
 
 
 ##############################################################################
