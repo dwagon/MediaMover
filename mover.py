@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
+import click
 
 import os
 import re
@@ -7,7 +9,6 @@ import pipes
 
 srcdir = '/data/sabnzbd/Downloads/complete/'
 dstdir = '/Music/TV'
-kiddingFlag = True
 
 
 ##############################################################################
@@ -25,17 +26,17 @@ def demangle_showname(name):
 
 
 ##############################################################################
-def make_show_dirs(showname, season):
+def make_show_dirs(ctx, showname, season):
     dest = os.path.join(dstdir, showname)
     if not os.path.exists(dest):
-        if kiddingFlag:
+        if ctx.obj['kidding']:
             print("mkdir {}".format(dest))
         else:
             os.mkdir(dest)
 
     seasondir = os.path.join(dest, 'Season {}'.format(season))
     if not os.path.exists(seasondir):
-        if kiddingFlag:
+        if ctx.obj['kidding']:
             print("mkdir {}".format(seasondir))
         else:
             os.mkdir(seasondir)
@@ -43,27 +44,35 @@ def make_show_dirs(showname, season):
 
 
 ##############################################################################
-def move_show(fname, destdir, destfile):
+def move_show(ctx, fname, destdir, destfile):
     dest = pipes.quote("{}/{}".format(destdir, destfile))
     fname = pipes.quote(fname)
-    if kiddingFlag:
+    if ctx.obj['kidding']:
         print("mv {} {}".format(fname, dest))
     else:
+        if ctx.obj['versbose']:
+            print("Moving {} to {}".format(fname, dest))
         os.system("mv {} {}".format(fname, dest))
 
 
+@click.command()
+@click.option('--verbose', default=False, is_flag=True)
+@click.option('--kidding', default=False, is_flag=True)
+@click.pass_context
 ##############################################################################
-def main():
+def main(ctx, verbose, kidding):
+    ctx.obj['verbose'] = verbose
+    ctx.obj['kidding'] = kidding
     for root, dirs, files in os.walk(srcdir):
         if files:
             m_showname = root.replace(srcdir, '')
             showname, season, episode = demangle_showname(m_showname)
-            destdir = make_show_dirs(showname, season)
+            destdir = make_show_dirs(ctx, showname, season)
             for fname in files:
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
                 destfile = "{}.S{:02d}E{:02d}{}".format(showname, season, episode, ext)
-                move_show(srcfile, destdir, destfile)
+                move_show(ctx, srcfile, destdir, destfile)
 
 
 ##############################################################################
