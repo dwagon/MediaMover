@@ -7,8 +7,8 @@ import re
 import pipes
 
 
-srcdir = '/data/sabnzbd/Downloads/complete/'
-dstdir = '/Music/TV'
+default_srcdir = '/data/sabnzbd/Downloads/complete/'
+default_dstdir = '/Music/TV'
 
 
 ##############################################################################
@@ -27,7 +27,7 @@ def demangle_showname(name):
 
 ##############################################################################
 def make_show_dirs(ctx, showname, season):
-    dest = os.path.join(dstdir, showname)
+    dest = os.path.join(ctx.obj['destdir'], showname)
     if not os.path.exists(dest):
         if ctx.obj['kidding']:
             print("mkdir {}".format(dest))
@@ -50,22 +50,26 @@ def move_show(ctx, fname, destdir, destfile):
     if ctx.obj['kidding']:
         print("mv {} {}".format(fname, dest))
     else:
-        if ctx.obj['versbose']:
+        if ctx.obj['verbose']:
             print("Moving {} to {}".format(fname, dest))
         os.system("mv {} {}".format(fname, dest))
 
 
+##############################################################################
 @click.command()
 @click.option('--verbose', default=False, is_flag=True)
-@click.option('--kidding', default=False, is_flag=True)
+@click.option('--kidding', default=False, is_flag=True, help="Don't actually do anything")
+@click.option('--srcdir', default=default_srcdir, help="Where to get files from")
+@click.option('--destdir', default=default_dstdir, help="Where to put files to")
 @click.pass_context
-##############################################################################
-def main(ctx, verbose, kidding):
+def cli(ctx, verbose, kidding, srcdir, destdir):
     ctx.obj['verbose'] = verbose
     ctx.obj['kidding'] = kidding
-    for root, dirs, files in os.walk(srcdir):
+    ctx.obj['srcdir'] = srcdir
+    ctx.obj['destdir'] = destdir
+    for root, dirs, files in os.walk(ctx.obj['srcdir']):
         if files:
-            m_showname = root.replace(srcdir, '')
+            m_showname = root.replace(ctx.obj['srcdir'], '')
             showname, season, episode = demangle_showname(m_showname)
             destdir = make_show_dirs(ctx, showname, season)
             for fname in files:
@@ -77,6 +81,6 @@ def main(ctx, verbose, kidding):
 
 ##############################################################################
 if __name__ == "__main__":
-    main()
+    cli(obj={})
 
 # EOF
