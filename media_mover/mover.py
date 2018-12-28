@@ -79,7 +79,11 @@ def cli(ctx, verbose, kidding, srcdir, destdir):
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
                 if ext not in ('.mkv',):
-                    print("Skipping {} due to filetype {}".format(showname, ext))
+                    if ext in ('.srt', '.nfo', '.sfv', '.srr', '.nzb'):
+                        print("Deleting {} due to filetype {}".format(fname, ext))
+                        os.unlink(srcfile)
+                    else:
+                        print("Skipping {} due to filetype {}".format(fname, ext))
                     continue
                 destfile = "{}.S{:02d}E{:02d}{}".format(showname, season, episode, ext)
                 move_show(ctx, srcfile, destdir, destfile)
