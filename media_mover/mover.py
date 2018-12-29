@@ -79,12 +79,13 @@ def cli(ctx, verbose, kidding, srcdir, destdir):
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
                 if ext not in ('.mkv',):
-                    if ext in ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg'):
+                    if ext in ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs'):
                         if ctx.obj['kidding']:
-                            print("Deleting {} due to filetype {}".format(fname, ext))
-                            os.unlink(srcfile)
-                        else:
                             print("Would delete {} due to filetype {}".format(fname, ext))
+                        else:
+                            if ctx.obj['verbose']:
+                                print("Deleting {} due to filetype {}".format(fname, ext))
+                            os.unlink(srcfile)
                     else:
                         print("Skipping {} due to filetype {}".format(fname, ext))
                     continue
