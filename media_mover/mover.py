@@ -13,10 +13,10 @@ default_dstdir = '/Music/TV'
 
 ##############################################################################
 def demangle_showname(name):
-    m = re.match(r'(?P<name>.*)S(?P<season>\d+)E(?P<episode>\d+)(.*)', name)
+    m = re.match(r'(?P<name>.*)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
     if not m:
         print("Didn't understand {}".format(name))
-        return None, None
+        return None, None, None
     sname = m.group('name').replace('.', ' ').strip()
     m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
     if m2:
@@ -79,9 +79,12 @@ def cli(ctx, verbose, kidding, srcdir, destdir):
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
                 if ext not in ('.mkv',):
-                    if ext in ('.srt', '.nfo', '.sfv', '.srr', '.nzb'):
-                        print("Deleting {} due to filetype {}".format(fname, ext))
-                        os.unlink(srcfile)
+                    if ext in ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg'):
+                        if ctx.obj['kidding']:
+                            print("Deleting {} due to filetype {}".format(fname, ext))
+                            os.unlink(srcfile)
+                        else:
+                            print("Would delete {} due to filetype {}".format(fname, ext))
                     else:
                         print("Skipping {} due to filetype {}".format(fname, ext))
                     continue
