@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import click
-
 import os
 import re
 import pipes
 
+import click
+import tvdb_api
 
 default_srcdir = '/data/sabnzbd/Downloads/complete/'
 default_dstdir = '/Music/TV'
@@ -64,16 +64,23 @@ def move_show(ctx, fname, destdir, destfile):
 @click.option('-k', '--kidding', default=False, is_flag=True, help="Don't actually do anything")
 @click.option('--srcdir', default=default_srcdir, help="Where to get files from")
 @click.option('--destdir', default=default_dstdir, help="Where to put files to")
+@click.option('--tvdb_username', default=None, envvar='TVDB_USERNAME')
+@click.option('--tvdb_userkey', default=None, envvar='TVDB_USERKEY')
+@click.option('--tvdb_apikey', default=None, envvar='TVDB_APIKEY')
 @click.pass_context
-def cli(ctx, verbose, kidding, srcdir, destdir):
+def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvdb_apikey):
     ctx.obj['verbose'] = verbose
     ctx.obj['kidding'] = kidding
     ctx.obj['srcdir'] = srcdir
     ctx.obj['destdir'] = destdir
+    tvdb = tvdb_api.Tvdb(apikey=tvdb_apikey, username=tvdb_username, userkey=tvdb_userkey)
     for root, dirs, files in os.walk(ctx.obj['srcdir']):
         if files:
             m_showname = root.replace(ctx.obj['srcdir'], '')
-            showname, season, episode = demangle_showname(m_showname)
+            m_showname, season, episode = demangle_showname(m_showname)
+            tvdb_show = tvdb[m_showname]
+            showname = tvdb_show.data['seriesName']
+            epname = tvdb_show[season][episode]['episodename']
             destdir = make_show_dirs(ctx, showname, season)
             for fname in files:
                 srcfile = os.path.join(root, fname)
@@ -89,7 +96,7 @@ def cli(ctx, verbose, kidding, srcdir, destdir):
                     else:
                         print("Skipping {} due to filetype {}".format(fname, ext))
                     continue
-                destfile = "{}.S{:02d}E{:02d}{}".format(showname, season, episode, ext)
+                destfile = "S{:02d}E{:02d}_{}{}".format(season, episode, epname, ext)
                 move_show(ctx, srcfile, destdir, destfile)
 
 
