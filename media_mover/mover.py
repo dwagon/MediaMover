@@ -10,6 +10,9 @@ import tvdb_api
 default_srcdir = '/data/sabnzbd/Downloads/complete/'
 default_dstdir = '/Music/TV'
 
+non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs')
+video_extensions = ('.mkv', )
+
 
 ##############################################################################
 def demangle_showname(name):
@@ -85,19 +88,18 @@ def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvd
             for fname in files:
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
-                if ext not in ('.mkv',):
-                    if ext in ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs'):
-                        if ctx.obj['kidding']:
-                            print("Would delete {} due to filetype {}".format(fname, ext))
-                        else:
-                            if ctx.obj['verbose']:
-                                print("Deleting {} due to filetype {}".format(fname, ext))
-                            os.unlink(srcfile)
+                if ext in non_video_extensions:
+                    if ctx.obj['kidding']:
+                        print("Would delete {} due to filetype {}".format(fname, ext))
                     else:
-                        print("Skipping {} due to filetype {}".format(fname, ext))
-                    continue
-                destfile = "S{:02d}E{:02d}_{}{}".format(season, episode, epname, ext)
-                move_show(ctx, srcfile, destdir, destfile)
+                        if ctx.obj['verbose']:
+                            print("Deleting {} due to filetype {}".format(fname, ext))
+                        os.unlink(srcfile)
+                elif ext in video_extensions:
+                    destfile = "S{:02d}E{:02d}_{}{}".format(season, episode, epname, ext)
+                    move_show(ctx, srcfile, destdir, destfile)
+                else:
+                    print("Skipping {} due to unknown filetype {}".format(fname, ext))
 
 
 ##############################################################################
