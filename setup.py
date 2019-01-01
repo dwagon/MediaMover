@@ -9,12 +9,12 @@ import os
 import sys
 from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import setup, Command
 
 # Package meta-data.
 NAME = 'media_mover'
 DESCRIPTION = 'Move downloaded TV shows to destination'
-URL = 'https://github.com/me/myproject'
+URL = 'https://github.com/dwagon/MediaMover'
 EMAIL = 'dougal.scott@gmail.com'
 AUTHOR = 'Dougal Scott'
 REQUIRES_PYTHON = '>=3.6.0'
@@ -103,13 +103,11 @@ setup(
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=('tests',)),
-    # If your package is a single module, use this instead of 'packages':
-    # py_modules=['mypackage'],
+    py_modules=['media_mover'],
 
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
-    # },
+    entry_points={
+        'console_scripts': ['mover=media_mover.mover:cli'],
+    },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
