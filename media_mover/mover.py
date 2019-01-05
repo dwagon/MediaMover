@@ -5,6 +5,7 @@ import re
 import pipes
 
 import click
+import click_config_file
 import tvdb_api
 
 default_srcdir = '/data/sabnzbd/Downloads/complete/'
@@ -70,6 +71,7 @@ def move_show(ctx, fname, destdir, destfile):
 @click.option('--tvdb_username', default=None, envvar='TVDB_USERNAME')
 @click.option('--tvdb_userkey', default=None, envvar='TVDB_USERKEY')
 @click.option('--tvdb_apikey', default=None, envvar='TVDB_APIKEY')
+@click_config_file.configuration_option(config_file_name='/usr/local/etc/media_mover.cfg')
 @click.pass_context
 def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvdb_apikey):
     ctx.obj['verbose'] = verbose
