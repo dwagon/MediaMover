@@ -11,25 +11,27 @@ import tvdb_api
 default_srcdir = '/data/sabnzbd/Downloads/complete/'
 default_dstdir = '/Music/TV'
 
-non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs')
-video_extensions = ('.mkv', )
+non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs', '.idx', '.sub')
+video_extensions = ('.mkv', '.m4v', '.avi')
 
 
 ##############################################################################
 def demangle_showname(name):
-    m = re.match(r'(?P<name>.*)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
+    year = None
+    m = re.match(r'(?P<name>.*?)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
     if not m:
         print("Didn't understand {}".format(name))
         return None, None, None
     sname = m.group('name').replace('.', ' ').strip()
     m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
     if m2:
-        sname = m2.group('sname').strip()
+        sname = m2.group('sname')
+        year = m2.group('year')
     if sname.startswith('_UNPACK_'):
         sname = sname.replace('_UNPACK_', '')
     season = int(m.group('season').lstrip('0'))
     episode = int(m.group('episode').lstrip('0'))
-    return sname, season, episode
+    return sname.strip(), year, season, episode
 
 
 ##############################################################################
@@ -63,6 +65,28 @@ def move_show(ctx, fname, destdir, destfile):
 
 
 ##############################################################################
+def get_show_details(tvdb, m_showname):
+    """ Return show details based on the filename
+    Try a more specific show (with year) before being more
+    general """
+    showname, year, season, episode = demangle_showname(m_showname)
+    for sn in ("{} ({})".format(showname, year), showname):
+        try:
+            tvdb_show = tvdb[sn]
+        except tvdb_api.tvdb_shownotfound:
+            pass
+        else:
+            break
+    else:
+        print("Couldn't find show {}".format(m_showname))
+        return None, None, None
+    showname = tvdb_show.data['seriesName']
+    epname = tvdb_show[season][episode]['episodename']
+    destfile = "S{:02d}E{:02d}_{}".format(season, episode, epname)
+    return showname, season, destfile
+
+
+##############################################################################
 @click.command()
 @click.option('-v', '--verbose', default=False, is_flag=True)
 @click.option('-k', '--kidding', default=False, is_flag=True, help="Don't actually do anything")
@@ -82,12 +106,15 @@ def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvd
     for root, dirs, files in os.walk(ctx.obj['srcdir']):
         if files:
             m_showname = root.replace(ctx.obj['srcdir'], '')
-            m_showname, season, episode = demangle_showname(m_showname)
-            tvdb_show = tvdb[m_showname]
-            showname = tvdb_show.data['seriesName']
-            epname = tvdb_show[season][episode]['episodename']
+            showname, season, destfile = get_show_details(tvdb, m_showname)
+            if showname is None:
+                continue
             destdir = make_show_dirs(ctx, showname, season)
             for fname in files:
+                if 'sample' in fname:
+                    if ctx.obj['verbose']:
+                        print("Skipping {} due to sample".format(fname))
+                    continue
                 srcfile = os.path.join(root, fname)
                 ext = os.path.splitext(srcfile)[-1]
                 if ext in non_video_extensions:
@@ -98,10 +125,12 @@ def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvd
                             print("Deleting {} due to filetype {}".format(fname, ext))
                         os.unlink(srcfile)
                 elif ext in video_extensions:
-                    destfile = "S{:02d}E{:02d}_{}{}".format(season, episode, epname, ext)
-                    move_show(ctx, srcfile, destdir, destfile)
+                    destfileext = "{}{}".format(destfile, ext)
+                    move_show(ctx, srcfile, destdir, destfileext)
                 else:
                     print("Skipping {} due to unknown filetype {}".format(fname, ext))
+            if ctx.obj['verbose']:
+                print()
 
 
 ##############################################################################
