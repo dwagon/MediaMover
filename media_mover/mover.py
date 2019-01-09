@@ -11,7 +11,7 @@ default_srcdir = '/data/sabnzbd/Downloads/complete/'
 default_dstdir = '/Music/TV'
 
 non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs', '.idx', '.sub')
-video_extensions = ('.mkv', '.m4v')
+video_extensions = ('.mkv', '.m4v', '.avi')
 
 
 ##############################################################################
