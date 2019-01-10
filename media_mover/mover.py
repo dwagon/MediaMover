@@ -21,7 +21,7 @@ def demangle_showname(name):
     m = re.match(r'(?P<name>.*?)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
     if not m:
         print("Didn't understand {}".format(name))
-        return None, None, None
+        return None, None, None, None
     sname = m.group('name').replace('.', ' ').strip()
     m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
     if m2:
