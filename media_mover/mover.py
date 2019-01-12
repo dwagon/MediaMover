@@ -12,7 +12,7 @@ default_srcdir = '/data/sabnzbd/Downloads/complete/'
 default_dstdir = '/Music/TV'
 
 non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs', '.idx', '.sub')
-video_extensions = ('.mkv', '.m4v', '.avi')
+video_extensions = ('.mkv', '.m4v', '.avi', '.mp4')
 
 
 ##############################################################################
@@ -20,8 +20,10 @@ def demangle_showname(name):
     year = None
     m = re.match(r'(?P<name>.*?)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
     if not m:
-        print("Didn't understand {}".format(name))
-        return None, None, None, None
+        m = re.match(r'(?P<name>.*?)\.(?P<season>\d+)[Xx](?P<episode>\d+)\.(.*)', name)
+        if not m:
+            print("Didn't understand {}".format(name))
+            return None, None, None, None
     sname = m.group('name').replace('.', ' ').strip()
     m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
     if m2:
@@ -70,6 +72,8 @@ def get_show_details(tvdb, m_showname):
     Try a more specific show (with year) before being more
     general """
     showname, year, season, episode = demangle_showname(m_showname)
+    if showname is None:
+        return None, None, None
     for sn in ("{} ({})".format(showname, year), showname):
         try:
             tvdb_show = tvdb[sn]
