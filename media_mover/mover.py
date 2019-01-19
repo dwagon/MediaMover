@@ -67,17 +67,23 @@ def move_show(ctx, fname, destdir, destfile):
 
 
 ##############################################################################
-def get_show_details(tvdb, m_showname):
+def get_show_details(ctx, tvdb, m_showname):
     """ Return show details based on the filename
     Try a more specific show (with year) before being more
     general """
     showname, year, season, episode = demangle_showname(m_showname)
     if showname is None:
         return None, None, None
-    for sn in ("{} ({})".format(showname, year), showname):
+    searchlist = []
+    if year:
+        searchlist.append("{} ({})".format(showname, year))
+    searchlist.append(showname)
+    for sn in searchlist:
+        if ctx.obj['kidding']:
+            print("Searching for {}".format(sn))
         try:
             tvdb_show = tvdb[sn]
-        except tvdb_api.tvdb_shownotfound:
+        except (tvdb_api.tvdb_shownotfound, tvdb_api.tvdb_episodenotfound):
             pass
         else:
             break
@@ -110,7 +116,7 @@ def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvd
     for root, dirs, files in os.walk(ctx.obj['srcdir']):
         if files:
             m_showname = root.replace(ctx.obj['srcdir'], '')
-            showname, season, destfile = get_show_details(tvdb, m_showname)
+            showname, season, destfile = get_show_details(ctx, tvdb, m_showname)
             if showname is None:
                 continue
             destdir = make_show_dirs(ctx, showname, season)
