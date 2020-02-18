@@ -1,1 +1,6 @@
-pex
+pylint
+pytest
+pytest-cov
+pytest-xdist
+python-coveralls
+flake8

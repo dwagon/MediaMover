@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+""" Move media files to their appropriate location """
 
 import os
 import re
@@ -16,11 +17,12 @@ video_extensions = ('.mkv', '.m4v', '.avi')
 
 ##############################################################################
 def demangle_showname(name):
+    """ Convert a filename to a showname, year, episode, season if possible """
     year = None
     m = re.match(r'(?P<name>.*?)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
     if not m:
         print("Didn't understand {}".format(name))
-        return None, None, None
+        return None, None, None, None
     sname = m.group('name').replace('.', ' ').strip()
     m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
     if m2:
@@ -35,6 +37,7 @@ def demangle_showname(name):
 
 ##############################################################################
 def make_show_dirs(ctx, showname, season):
+    """ Make the destination directory for a show """
     dest = os.path.join(ctx.obj['destdir'], showname)
     if not os.path.exists(dest):
         if ctx.obj['kidding']:
@@ -53,6 +56,7 @@ def make_show_dirs(ctx, showname, season):
 
 ##############################################################################
 def move_show(ctx, fname, destdir, destfile):
+    """ Move a show into place """
     dest = pipes.quote("{}/{}".format(destdir, destfile))
     fname = pipes.quote(fname)
     if ctx.obj['kidding']:
@@ -133,6 +137,6 @@ def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvd
 
 ##############################################################################
 if __name__ == "__main__":
-    cli(obj={})
+    cli()
 
 # EOF

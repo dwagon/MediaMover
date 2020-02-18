@@ -1,3 +1,4 @@
 dist
 *.egg-info
 api_keys
+.coverage
