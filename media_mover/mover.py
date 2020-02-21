@@ -6,13 +6,17 @@ import re
 import pipes
 
 import click
-import tvdb_api
+from tvdb_api_client import TVDBClient
 
-default_srcdir = '/data/sabnzbd/Downloads/complete/'
+default_srcdir = '/home/sabnzbd/config/Downloads/complete/'
 default_dstdir = '/Music/TV'
 
 non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs', '.idx', '.sub')
-video_extensions = ('.mkv', '.m4v', '.avi')
+video_extensions = ('.mkv', '.m4v', '.avi', '.mp4')
+
+OPTIONS = {
+        'kidding': False
+        }
 
 
 ##############################################################################
@@ -36,18 +40,18 @@ def demangle_showname(name):
 
 
 ##############################################################################
-def make_show_dirs(ctx, showname, season):
+def make_show_dirs(showname, season):
     """ Make the destination directory for a show """
-    dest = os.path.join(ctx.obj['destdir'], showname)
+    dest = os.path.join(OPTIONS['destdir'], showname)
     if not os.path.exists(dest):
-        if ctx.obj['kidding']:
+        if OPTIONS['kidding']:
             print("mkdir {}".format(dest))
         else:
             os.mkdir(dest)
 
     seasondir = os.path.join(dest, 'Season {}'.format(season))
     if not os.path.exists(seasondir):
-        if ctx.obj['kidding']:
+        if OPTIONS['kidding']:
             print("mkdir {}".format(seasondir))
         else:
             os.mkdir(seasondir)
@@ -55,88 +59,103 @@ def make_show_dirs(ctx, showname, season):
 
 
 ##############################################################################
-def move_show(ctx, fname, destdir, destfile):
+def move_show(fname, destdir, destfile):
     """ Move a show into place """
     dest = pipes.quote("{}/{}".format(destdir, destfile))
     fname = pipes.quote(fname)
-    if ctx.obj['kidding']:
-        print("mv {} {}".format(fname, dest))
+    if OPTIONS['kidding']:
+        print("cp {} {}".format(fname, dest))
     else:
-        if ctx.obj['verbose']:
-            print("Moving {} to {}".format(fname, dest))
-        os.system("mv {} {}".format(fname, dest))
+        print("Copying {} to {}".format(fname, dest))
+        os.system("cp {} {}".format(fname, dest))
 
 
 ##############################################################################
-def get_show_details(tvdb, m_showname):
+def get_show_details(tvdb, root):
     """ Return show details based on the filename
     Try a more specific show (with year) before being more
     general """
-    showname, year, season, episode = demangle_showname(m_showname)
-    for sn in ("{} ({})".format(showname, year), showname):
-        try:
-            tvdb_show = tvdb[sn]
-        except tvdb_api.tvdb_shownotfound:
-            pass
+    m_showname = root.replace(OPTIONS['srcdir'], '')
+    showname, _, season, episodenum = demangle_showname(m_showname)
+    tvdb_show = tvdb.find_series_by_name(showname)
+    for series in tvdb_show:
+        episodes = tvdb.get_episodes_by_series(series['tvdb_id'])
+        for episode in episodes:
+            if episode['airedSeason'] == season and episode['airedEpisodeNumber'] == episodenum:
+                epname = episode['episodeName']
+                destfile = "S{:02d}E{:02d}_{}".format(season, episodenum, epname)
+                return showname, season, destfile
+    return None, None, None
+
+
+##############################################################################
+def process_file(fname, root, destfile, destdir):
+    """ Process file """
+    if 'sample' in fname:
+        print("Skipping {} due to sample".format(fname))
+        return
+    srcfile = os.path.join(root, fname)
+    ext = os.path.splitext(srcfile)[-1]
+    if ext in non_video_extensions:
+        if OPTIONS['kidding']:
+            print("Would delete {} due to filetype {}".format(fname, ext))
         else:
-            break
+            try:
+                os.unlink(srcfile)
+            except Exception as exc:    # pylint: disable=broad-except
+                print(f"Failed to remove {srcfile}: {exc}")
+    elif ext in video_extensions:
+        destfileext = "{}{}".format(destfile, ext)
+        move_show(srcfile, destdir, destfileext)
     else:
-        print("Couldn't find show {}".format(m_showname))
-        return None, None, None
-    showname = tvdb_show.data['seriesName']
-    epname = tvdb_show[season][episode]['episodename']
-    destfile = "S{:02d}E{:02d}_{}".format(season, episode, epname)
-    return showname, season, destfile
+        print("Skipping {} due to unknown filetype {}".format(fname, ext))
 
 
 ##############################################################################
 @click.command()
-@click.option('-v', '--verbose', default=False, is_flag=True)
 @click.option('-k', '--kidding', default=False, is_flag=True, help="Don't actually do anything")
-@click.option('--srcdir', default=default_srcdir, help="Where to get files from", envvar='MEDIA_SRCDIR')
-@click.option('--destdir', default=default_dstdir, help="Where to put files to", envvar='MEDIA_DSTDIR')
-@click.option('--tvdb_username', default=None, envvar='TVDB_USERNAME')
-@click.option('--tvdb_userkey', default=None, envvar='TVDB_USERKEY')
-@click.option('--tvdb_apikey', default=None, envvar='TVDB_APIKEY')
-@click.pass_context
-def cli(ctx, verbose, kidding, srcdir, destdir, tvdb_username, tvdb_userkey, tvdb_apikey):
-    ctx.obj['verbose'] = verbose
-    ctx.obj['kidding'] = kidding
-    ctx.obj['srcdir'] = srcdir
-    ctx.obj['destdir'] = destdir
-    tvdb = tvdb_api.Tvdb(apikey=tvdb_apikey, username=tvdb_username, userkey=tvdb_userkey)
-    for root, dirs, files in os.walk(ctx.obj['srcdir']):
-        if files:
-            m_showname = root.replace(ctx.obj['srcdir'], '')
-            showname, season, destfile = get_show_details(tvdb, m_showname)
-            if showname is None:
-                continue
-            destdir = make_show_dirs(ctx, showname, season)
-            for fname in files:
-                if 'sample' in fname:
-                    if ctx.obj['verbose']:
-                        print("Skipping {} due to sample".format(fname))
-                    continue
-                srcfile = os.path.join(root, fname)
-                ext = os.path.splitext(srcfile)[-1]
-                if ext in non_video_extensions:
-                    if ctx.obj['kidding']:
-                        print("Would delete {} due to filetype {}".format(fname, ext))
-                    else:
-                        if ctx.obj['verbose']:
-                            print("Deleting {} due to filetype {}".format(fname, ext))
-                        os.unlink(srcfile)
-                elif ext in video_extensions:
-                    destfileext = "{}{}".format(destfile, ext)
-                    move_show(ctx, srcfile, destdir, destfileext)
-                else:
-                    print("Skipping {} due to unknown filetype {}".format(fname, ext))
-            if ctx.obj['verbose']:
-                print()
+@click.option(
+    '--srcdir',
+    default=default_srcdir, help="Where to get files from", envvar='MEDIA_SRCDIR')
+@click.option(
+    '--destdir',
+    default=default_dstdir, help="Where to put files to", envvar='MEDIA_DSTDIR')
+@click.option('--username', envvar='TVDB_USERNAME')
+@click.option('--userkey', envvar='TVDB_USERKEY')
+@click.option('--apikey', envvar='TVDB_APIKEY')
+def cli(kidding, srcdir, destdir, username, userkey, apikey):   # pylint: disable=too-many-arguments
+    """ CLI interface """
+    OPTIONS['kidding'] = kidding
+    OPTIONS['srcdir'] = srcdir
+    OPTIONS['destdir'] = destdir
+    OPTIONS['apikey'] = apikey
+    OPTIONS['username'] = username
+    OPTIONS['userkey'] = userkey
+    process()
+
+
+##############################################################################
+def process():
+    """ Do the processing """
+    tvdb = TVDBClient(
+                api_key=OPTIONS['apikey'],
+                username=OPTIONS['username'],
+                user_key=OPTIONS['userkey']
+    )
+    for root, _, files in os.walk(OPTIONS['srcdir']):
+        if not files:
+            continue
+        showname, season, destfile = get_show_details(tvdb, root)
+        if showname is None:
+            print(f"Couldn't find season details for {root}")
+            continue
+        destdir = make_show_dirs(showname, season)
+        for fname in files:
+            process_file(fname, root, destfile, destdir)
 
 
 ##############################################################################
 if __name__ == "__main__":
-    cli()
+    cli()   # pylint: disable=no-value-for-parameter
 
 # EOF
