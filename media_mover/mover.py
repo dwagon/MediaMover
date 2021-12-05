@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/dwagon/.venvs/media_mover/bin/python3
 """ Move media files to their appropriate location """
 
 import os
@@ -8,7 +8,7 @@ import pipes
 import click
 from tvdb_api_client import TVDBClient
 
-default_srcdir = '/home/sabnzbd/config/Downloads/complete/'
+default_srcdir = '/var/snap/sabnzbd/common/Downloads/complete/'
 default_dstdir = '/Music/TV'
 
 non_video_extensions = ('.srt', '.nfo', '.sfv', '.srr', '.nzb', '.jpg', '.srs', '.idx', '.sub')
@@ -22,20 +22,24 @@ OPTIONS = {
 ##############################################################################
 def demangle_showname(name):
     """ Convert a filename to a showname, year, episode, season if possible """
-    year = None
-    m = re.match(r'(?P<name>.*?)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
-    if not m:
-        print("Didn't understand {}".format(name))
-        return None, None, None, None
-    sname = m.group('name').replace('.', ' ').strip()
-    m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
-    if m2:
-        sname = m2.group('sname')
-        year = m2.group('year')
-    if sname.startswith('_UNPACK_'):
-        sname = sname.replace('_UNPACK_', '')
-    season = int(m.group('season').lstrip('0'))
-    episode = int(m.group('episode').lstrip('0'))
+    try:
+        year = None
+        m = re.match(r'(?P<name>.*?)[Ss](?P<season>\d+)[Ee](?P<episode>\d+)(.*)', name)
+        if not m:
+            print("Didn't understand {}".format(name))
+            return None, None, None, None
+        sname = m.group('name').replace('.', ' ').strip()
+        m2 = re.match(r'(?P<sname>.*)(?P<year>\d{4})', sname)
+        if m2:
+            sname = m2.group('sname')
+            year = m2.group('year')
+        if sname.startswith('_UNPACK_'):
+            sname = sname.replace('_UNPACK_', '')
+        season = int(m.group('season').lstrip('0'))
+        episode = int(m.group('episode').lstrip('0'))
+    except Exception as exc:
+        print(f"Failed with {exc} for {name}")
+        raise
     return sname.strip(), year, season, episode
 
 
@@ -43,6 +47,7 @@ def demangle_showname(name):
 def make_show_dirs(showname, season):
     """ Make the destination directory for a show """
     dest = os.path.join(OPTIONS['destdir'], showname)
+    print(dest)
     if not os.path.exists(dest):
         if OPTIONS['kidding']:
             print("mkdir {}".format(dest))
@@ -77,9 +82,18 @@ def get_show_details(tvdb, root):
     general """
     m_showname = root.replace(OPTIONS['srcdir'], '')
     showname, _, season, episodenum = demangle_showname(m_showname)
-    tvdb_show = tvdb.find_series_by_name(showname)
+    try:
+        tvdb_show = tvdb.find_series_by_name(showname)
+    except Exception as exc:
+        print(f"Failure on {root}: {exc}")
+        return None, None, None
+        
     for series in tvdb_show:
-        episodes = tvdb.get_episodes_by_series(series['tvdb_id'])
+        try:
+            episodes = tvdb.get_episodes_by_series(series['tvdb_id'])
+        except Exception as exc:
+            print(f"Failure on {root}, {series}: {exc}")
+            return None, None, None
         for episode in episodes:
             if episode['airedSeason'] == season and episode['airedEpisodeNumber'] == episodenum:
                 epname = episode['episodeName']
@@ -131,6 +145,7 @@ def cli(kidding, srcdir, destdir, username, userkey, apikey):   # pylint: disabl
     OPTIONS['apikey'] = apikey
     OPTIONS['username'] = username
     OPTIONS['userkey'] = userkey
+    print(OPTIONS)
     process()
 
 

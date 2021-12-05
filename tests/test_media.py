@@ -1,7 +1,7 @@
 """ Test media """
 
 import unittest
-from media_mover.mover import demangle_showname
+from media_mover.mover import demangle_showname, make_show_dirs
 
 
 ##############################################################################
@@ -31,3 +31,9 @@ class test_demangle(unittest.TestCase):
         for test in self.TESTS:
             ans = demangle_showname(test[0])
             self.assertEqual(ans, test[1])
+
+
+##############################################################################
+class test_make_show_dirs(unittest.TestCase):
+    """ test make show dirs """
+    def test_make_dirs(self):
